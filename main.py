@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import threading
@@ -24,21 +25,30 @@ def index():
     return "HTML Fetcher Bot is running ✅", 200
 
 
-# ── Flask runs in background thread ──────────────────────────────────────────
 def run_flask():
     port = int(os.environ.get("PORT", 10000))
     logger.info("Starting Flask on port %d", port)
-    # use_reloader=False required — reloader forks and breaks threading
     flask_app.run(host="0.0.0.0", port=port, use_reloader=False)
+
+
+# ── Bot async entry (low-level API — avoids run_polling signal issues) ────────
+async def run_bot_async():
+    tg_app = build_app()
+    async with tg_app:
+        await tg_app.start()
+        logger.info("Telegram bot started, polling...")
+        await tg_app.updater.start_polling(drop_pending_updates=True)
+        # Block forever until process is killed
+        await asyncio.Event().wait()
+        await tg_app.updater.stop()
+        await tg_app.stop()
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    # Flask in background daemon thread (no signal handler needed)
+    # Flask in background daemon thread
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
 
-    # Bot runs in MAIN thread — run_polling() requires main thread for signals
-    logger.info("Starting Telegram bot polling...")
-    tg_app = build_app()
-    tg_app.run_polling(drop_pending_updates=True)
+    # Bot runs via asyncio.run() — creates its own event loop cleanly
+    asyncio.run(run_bot_async())
