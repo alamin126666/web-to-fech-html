@@ -24,24 +24,21 @@ def index():
     return "HTML Fetcher Bot is running ✅", 200
 
 
-# ── Bot polling thread ────────────────────────────────────────────────────────
-def run_bot():
-    import asyncio
-    # Python 3.10+ no longer auto-creates event loops in non-main threads
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    logger.info("Starting Telegram bot polling...")
-    tg_app = build_app()
-    tg_app.run_polling(drop_pending_updates=True)
+# ── Flask runs in background thread ──────────────────────────────────────────
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    logger.info("Starting Flask on port %d", port)
+    # use_reloader=False required — reloader forks and breaks threading
+    flask_app.run(host="0.0.0.0", port=port, use_reloader=False)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    # Start bot in background thread
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
+    # Flask in background daemon thread (no signal handler needed)
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
 
-    # Start Flask (keeps Render web service alive)
-    port = int(os.environ.get("PORT", 10000))
-    logger.info("Starting Flask on port %d", port)
-    flask_app.run(host="0.0.0.0", port=port)
+    # Bot runs in MAIN thread — run_polling() requires main thread for signals
+    logger.info("Starting Telegram bot polling...")
+    tg_app = build_app()
+    tg_app.run_polling(drop_pending_updates=True)
