@@ -26,6 +26,10 @@ def index():
 
 # ── Bot polling thread ────────────────────────────────────────────────────────
 def run_bot():
+    import asyncio
+    # Python 3.10+ no longer auto-creates event loops in non-main threads
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     logger.info("Starting Telegram bot polling...")
     tg_app = build_app()
     tg_app.run_polling(drop_pending_updates=True)
