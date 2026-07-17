@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: html-fetcher-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: BOT_TOKEN
+        sync: false        # তুমি Render dashboard-এ manually দিবে
+    autoDeploy: true
